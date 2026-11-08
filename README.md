@@ -1,16 +1,28 @@
-# React + Vite
+# Sistema de Gestion de Solicitudes - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplicacion SPA desarrollada con React 19, Vite y Tailwind CSS para la gestion de solicitudes y contactos.
 
-Currently, two official plugins are available:
+## Requisitos
+- Node.js 18 o superior
+- npm 9 o superior
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Instalacion y Ejecucion
+1. Instalar dependencias:
+```bash
+npm install
+```
 
-## React Compiler
+2. Iniciar el servidor de desarrollo:
+```bash
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+La aplicacion abrira en `http://localhost:5173`.
 
-## Expanding the Oxlint configuration
+## Comunicacion con el Backend
+El archivo `vite.config.js` contiene la configuracion para reenviar las peticiones `/api/*` al backend en `http://localhost:8080`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Vistas Desarrolladas
+- `/` o `/solicitudes`: Tabla general con ordenamiento por columnas (ascendente y descendente), filtros por tipo y fecha de envio, enlace directo al detalle por codigo autogenerado y boton de exportacion a CSV.
+- `/solicitudes/nueva`: Formulario de registro con control de fecha (datepicker), bloqueo en tiempo real de caracteres no numéricos en el telefono, lista dinamica para agregar/eliminar contactos adicionales y confirmacion con código devuelto por el servidor.
+- `/solicitudes/:codigo`: Ficha de detalle de la solicitud seleccionada y tabla con sus contactos adicionales registrados.
