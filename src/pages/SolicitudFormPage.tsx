@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Plus, 
   Trash2, 
   Check, 
-  ExternalLink 
+  ExternalLink,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { solicitudService } from '../services/solicitudService';
 
 export default function SolicitudFormPage() {
   const navigate = useNavigate();
@@ -23,8 +26,20 @@ export default function SolicitudFormPage() {
     { id: 1, nombreContacto: '', numeroContacto: '' }
   ]);
 
+  const [tipos, setTipos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [codigoGenerado, setCodigoGenerado] = useState('');
+
+  useEffect(() => {
+    solicitudService.listarTipos().then(lista => {
+      setTipos(lista);
+      if (lista.length > 0 && !formData.tipoSolicitud) {
+        setFormData(prev => ({ ...prev, tipoSolicitud: lista[0] }));
+      }
+    });
+  }, []);
 
   const handleNumericInput = (field, value) => {
     const numericValue = value.replace(/\D/g, '');
@@ -51,17 +66,44 @@ export default function SolicitudFormPage() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
     if (!formData.nombreContacto || !formData.numeroContacto || !formData.marca) {
-      alert('Completa los campos obligatorios.');
+      setError('Por favor completa todos los campos obligatorios marcados con (*).');
       return;
     }
 
-    const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    setCodigoGenerado(`SOL-${fecha}-${rand}`);
-    setShowModal(true);
+    // Filtrar contactos adicionales completos
+    const contactosValidos = contactos
+      .filter(c => c.nombreContacto.trim() !== '' && c.numeroContacto.trim() !== '')
+      .map(c => ({
+        nombreContacto: c.nombreContacto.trim(),
+        numeroContacto: c.numeroContacto.trim(),
+      }));
+
+    const payload = {
+      marca: formData.marca.trim(),
+      tipoSolicitud: formData.tipoSolicitud,
+      fechaEnvio: formData.fechaEnvio,
+      nombreContacto: formData.nombreContacto.trim(),
+      numeroContacto: formData.numeroContacto.trim(),
+      contactos: contactosValidos,
+    };
+
+    setLoading(true);
+    try {
+      const response = await solicitudService.crear(payload);
+      setCodigoGenerado(response.codigo);
+      setShowModal(true);
+    } catch (err) {
+      console.error('Error al guardar la solicitud:', err);
+      const backendMsg = err.response?.data?.message || err.response?.data?.errors?.[0] || 'Ocurrió un error al guardar la solicitud.';
+      setError(backendMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,6 +115,13 @@ export default function SolicitudFormPage() {
         <ArrowLeft className="h-3.5 w-3.5" />
         Volver a la lista
       </Link>
+
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="rounded-xl border border-zinc-200/80 bg-white p-6 sm:p-8 shadow-xs">
         <div className="border-b border-zinc-100 pb-4">
@@ -127,11 +176,9 @@ export default function SolicitudFormPage() {
                   onChange={(e) => setFormData(prev => ({ ...prev, tipoSolicitud: e.target.value }))}
                   className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-3 text-xs text-zinc-900 shadow-2xs focus:border-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-950"
                 >
-                  <option value="Cotización">Cotización</option>
-                  <option value="Reclamo">Reclamo</option>
-                  <option value="Soporte Técnico">Soporte Técnico</option>
-                  <option value="Garantía">Garantía</option>
-                  <option value="Consulta Comercial">Consulta Comercial</option>
+                  {tipos.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -253,6 +300,7 @@ export default function SolicitudFormPage() {
           <div className="flex items-center justify-end gap-2.5 border-t border-zinc-100 pt-4">
             <button
               type="button"
+              disabled={loading}
               onClick={() => navigate('/')}
               className="rounded-lg px-3.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
             >
@@ -260,9 +308,11 @@ export default function SolicitudFormPage() {
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-zinc-900 px-3.5 py-1.5 text-xs font-medium text-white shadow-xs hover:bg-zinc-800 transition-colors"
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 py-1.5 text-xs font-medium text-white shadow-xs hover:bg-zinc-800 disabled:opacity-50 transition-colors"
             >
-              Guardar Solicitud
+              {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {loading ? 'Guardando...' : 'Guardar Solicitud'}
             </button>
           </div>
         </form>
@@ -276,13 +326,13 @@ export default function SolicitudFormPage() {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-zinc-900">
-                Solicitud Registrada
+                ¡Solicitud Registrada en la Base de Datos!
               </h3>
               <p className="text-xs text-zinc-500 mt-1">
-                El sistema generó el siguiente código identificador:
+                El backend reactivo autogeneró el siguiente código único:
               </p>
             </div>
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 py-2 font-mono text-sm font-semibold text-zinc-900">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 py-2.5 font-mono text-base font-bold text-zinc-900">
               {codigoGenerado}
             </div>
             <div className="flex justify-center gap-2 pt-2">
